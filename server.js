@@ -13,23 +13,19 @@ let async = require('async');
 let staticZones  = require('./blacklist.js');
 let memcache = new memcached('localhost');
 let blacklist = staticZones['blacklist'];
-
+var io = require('socket.io').listen(61327);
 
 function proxy(question, response, cb) {
-    console.log('proxying', question.name);
-
     var request = dns.Request({
         question: question, // forwarding the question
         server: authority, // this is the DNS server we are asking
         timeout: 1000
     });
-
     // when we get answers, append them to the response
     request.on('message', (err, msg) => {
         msg.answer.forEach(a => response.answer.push(a));
-	memcache.set(question.name, response.answer, 60,function( err, result ){
+	memcache.set(question.name+question.type, response.answer, 60,function( err, result ){
 		                    if( err ) console.error( err );
-		                    console.dir("Cached " + question.name + ": "+ result );
 		                }); // @fixme: 60 seconds needs to be replaced by the TTL
     });
 
@@ -38,28 +34,44 @@ function proxy(question, response, cb) {
 }
 
 function handleRequest(request, response) {
-    console.log('request from', request.address.address, 'for', request.question[0].name);
+	var today = new Date();
+	let broadcast={timestamp:today.getFullYear()+'-'+(today.getMonth()+1)+'-'+today.getDate()+' '+today.getHours() + ":" + today.getMinutes() + ":" + today.getSeconds(),ipAddress:request.address.address,status:'success',hostname:request.question[0].name,note:""};
 
     let f = [];
 
     request.question.forEach(question => {
-        memcache.get(question.name, function(err, data) {
+        memcache.get(question.name+question.type, function(err, data) {
             if (data) {
-		    console.log("Memcache cached entry supplied for request answer");
+		broadcast.note = "cached";
+		    broadcast.status = 'primary';
                 response.answer = data;
             } else {
                 let entry = blacklist[question.name];
                 if (entry !== undefined) {
-                    entry[0].records.forEach(record => {
+			//Host is blacklisted
+			//so lets not send anything for a DNSFAIL.
+			//The comment block below shows how to craft a record
+		/**
+		  try{
+                  	entry[0].records.forEach(record => {
                         record.name = question.name;
                         record.ttl = record.ttl || 1800;
                         response.answer.push(dns[record.type](record));
+			    broadcast.note="Blacklisted";
+			    broadcast.status = 'warning';
                     });
+			} catch(e) {
+				broadcast.note = "Exception AC1";
+				broadcast.status = 'danger';
+			} 
+				**/
+                        broadcast.note="Blacklisted";
+                        broadcast.status = 'warning';
                 } else {
-			console.log('Proxying request..');
                     f.push(cb => proxy(question, response, cb));
                 }
             }
+		io.emit("resolvr_monitor",broadcast);
 	    async.parallel(f, function() {
 	    	response.send();
 	        });

@@ -34,12 +34,10 @@ foreach($data as $row) {
                 $row=explode("\t",$row);
                 $hostname=trim($row[1]);
 		if (strpos($hostname,'#')===false){
-			$record=['type' => 'A', 'address' => '192.0.2.69', 'ttl' => 60*60*24];
-			fputs($blacklist, '"' . $hostname . '": [' . json_encode($record) . "],\n");
+			fputs($blacklist, '"' . $hostname . "\": 1,\n");
 		}
 	}
 }
-$record=['type'=>'A','address'=>'132.7.80.4','ttl'=>60*60*24];
-fputs($blacklist,'"budgie.dxn": ['.json_encode($record)."]};");
+fputs($blacklist,'"budgie.dxn": 1}};');
 echo "Processing complete.\033[K\n";
 fclose($blacklist);
