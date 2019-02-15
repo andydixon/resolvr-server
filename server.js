@@ -12,7 +12,7 @@ let async = require('async');
 let entries = require('./blacklist.js'); 
 
 entries = entries.blacklist;
-console.log(entries);
+
 function proxy(question, response, cb) {
     console.log('proxying', question.name);
 
