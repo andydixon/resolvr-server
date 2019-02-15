@@ -1,5 +1,5 @@
 'use strict';
-
+let memcached = require('memcached');
 let dns = require('native-dns');
 let server = dns.createServer();
 let authority = {
@@ -7,11 +7,13 @@ let authority = {
     port: 53,
     type: 'udp'
 };
+
+
 let async = require('async');
+let staticZones  = require('./blacklist.js');
+let memcache = new memcached('localhost');
+let blacklist = staticZones['blacklist'];
 
-let entries = require('./blacklist.js'); 
-
-entries = entries.blacklist;
 
 function proxy(question, response, cb) {
     console.log('proxying', question.name);
@@ -25,6 +27,10 @@ function proxy(question, response, cb) {
     // when we get answers, append them to the response
     request.on('message', (err, msg) => {
         msg.answer.forEach(a => response.answer.push(a));
+	memcache.set(question.name, response.answer, 60,function( err, result ){
+		                    if( err ) console.error( err );
+		                    console.dir("Cached " + question.name + ": "+ result );
+		                }); // @fixme: 60 seconds needs to be replaced by the TTL
     });
 
     request.on('end', cb);
@@ -37,20 +43,27 @@ function handleRequest(request, response) {
     let f = [];
 
     request.question.forEach(question => {
-        let entry = entries.filter(r => new RegExp(r.domain, 'i').exec(question.name));
-        if (entry.length) {
-            entry[0].records.forEach(record => {
-                record.name = question.name;
-                record.ttl = record.ttl || 1800;
-                response.answer.push(dns[record.type](record));
-            });
-        } else {
-            f.push(cb => proxy(question, response, cb));
-        }
-    });
-
-    async.parallel(f, function () {
-        response.send();
+        memcache.get(question.name, function(err, data) {
+            if (data) {
+		    console.log("Memcache cached entry supplied for request answer");
+                response.answer = data;
+            } else {
+                let entry = blacklist[question.name];
+                if (entry !== undefined) {
+                    entry[0].records.forEach(record => {
+                        record.name = question.name;
+                        record.ttl = record.ttl || 1800;
+                        response.answer.push(dns[record.type](record));
+                    });
+                } else {
+			console.log('Proxying request..');
+                    f.push(cb => proxy(question, response, cb));
+                }
+            }
+	    async.parallel(f, function() {
+	    	response.send();
+	        });
+        });
     });
 }
 

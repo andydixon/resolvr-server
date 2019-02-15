@@ -28,18 +28,18 @@ unlink('blacklist.js');
  *           }
  **/
 $blacklist=fopen("blacklist.js","w");
-fputs($blacklist,"module.exports = { blacklist: [\n");
+fputs($blacklist,"module.exports = { blacklist: {\n");
 foreach($data as $row) {
         if(strpos($row,'127.0.0.1')===0) {
                 $row=explode("\t",$row);
                 $hostname=trim($row[1]);
 		if (strpos($hostname,'#')===false){
-			$record=['domain'=>'^'.$hostname.'.*','records'=>['type'=>'A','address'=>'192.0.2.69','ttl'=>60*60*24]];
-			fputs($blacklist,json_encode($record).",\n");
+			$record=['type' => 'A', 'address' => '192.0.2.69', 'ttl' => 60*60*24];
+			fputs($blacklist, '"' . $hostname . '": [' . json_encode($record) . "],\n");
 		}
 	}
 }
-$record=['domain'=>'^budgie.dxn','records'=>['type'=>'A','address'=>'132.7.80.4','ttl'=>60*60*24]];
-fputs($blacklist,json_encode($record)."]};");
+$record=['type'=>'A','address'=>'132.7.80.4','ttl'=>60*60*24];
+fputs($blacklist,'"budgie.dxn": ['.json_encode($record)."]};");
 echo "Processing complete.\033[K\n";
 fclose($blacklist);
