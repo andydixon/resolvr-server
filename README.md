@@ -19,7 +19,7 @@ For a change I will empty my head into the *issues* section of GitHub. You may w
 
 # Performance #
 
-!()[https://resolvr.cc/2018stats.jpg]
+![](https://resolvr.cc/2018stats.jpg)
 Even before a lot of optimisations were in place, I had some debug in which would log the requests anonymously into elastic. Here's the stats from November 2018. The DNS resolver is now 450% faster and uses a fraction of memory it's predicesor did.
 
 
