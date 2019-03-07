@@ -1,4 +1,6 @@
 # Resolvr DNS Server
+![](https://scrutinizer-ci.com/g/andydixon/resolvr-server/badges/quality-score.png?b=master) ![](https://scrutinizer-ci.com/g/andydixon/resolvr-server/badges/build.png?b=master)
+
 Resolvr DNS server and supporting configuration Updating with PHP script. _note to self be more imaginitive_
 
 # Installation #
