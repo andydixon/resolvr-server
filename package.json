@@ -1,0 +1,28 @@
+{
+  "requires": true,
+  "lockfileVersion": 1,
+  "dependencies": {
+    "async": "^2.6.2",
+    "memcached": "^2.2.2",
+    "native-dns": "^0.7.0",
+    "socket.io": "^2.2.0"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "name": "resolvr-server",
+  "description": "Resolvr DNS server and supporting configuration Updatification scriptings",
+  "version": "1.0.0",
+  "main": "server.js",
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andydixon/resolvr-server.git"
+  },
+  "author": "Andy Dixon",
+  "license": "GPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/andydixon/resolvr-server/issues"
+  },
+  "homepage": "https://github.com/andydixon/resolvr-server#readme"
+}
