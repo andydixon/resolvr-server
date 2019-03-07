@@ -1,7 +1,20 @@
 # Resolvr DNS Server
-Resolvr DNS server and supporting configuration Updatification scriptings
+Resolvr DNS server and supporting configuration Updating with PHP script. _note to self be more imaginitive_
 
-@todo write me. I hate writing these things.
+# Installation #
+
+With NodeJS and NPM installed, run the following:
+``` npm install``` followed by ``` npm start ``` to start it.
+
+# Start-up issues #
+
+If you have an existing resolver enabled and listening on port 53, you will need to disable it. For newer ubuntu users, look up *disable systemd-resolved* and that should guide you through it. 
+
+
+# Known Bugs #
+
+For a change I will empty my head into the *issues* section of GitHub. You may want check that out.
+
 
 # License #
 
