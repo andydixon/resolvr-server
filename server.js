@@ -61,6 +61,7 @@ function proxy(question, response, cb) {
 
 function handleRequest(request, response) {
 
+    // Default emit for web based UI
     let broadcast = {
         timestamp: new Date().toISOString().slice(0, 19).replace('T', ' '),
         ipAddress: request.address.address,
