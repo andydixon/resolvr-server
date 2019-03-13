@@ -22,19 +22,21 @@
 let memcached = require('memcached');
 let dns = require('native-dns');
 let crypto = require('crypto');
+let uuid = require('./fastuuid');
+let async = require('async');
+var io = require('socket.io').listen(61327);
+
+
 let server = dns.createServer();
 let authority = {
     address: '8.8.8.8',
     port: 53,
     type: 'udp'
 };
-
-
-let async = require('async');
 let staticZones = require('./blacklist.js');
 let memcache = new memcached('localhost');
 let blacklist = staticZones['blacklist'];
-var io = require('socket.io').listen(61327);
+let serverUUID = uuid.v4();
 
 function proxy(question, response, cb) {
     var request = dns.Request({
@@ -115,7 +117,7 @@ function handleRequest(request, response) {
 
 
 function generateHash(ipAddress) {
-    return crypto.createHash('sha256').update("salty" + ipAddress + "goat").digest('hex');
+    return crypto.createHash('sha256').update("salty" + ipAddress + "goat"+serverUUID).digest('hex');
 }
 
 
@@ -126,7 +128,7 @@ server.on('close', () => console.log('server closed', server.address()));
 server.on('error', (err, buff, req, res) => console.error(err.stack));
 server.on('socketError', (err, socket) => console.error(err));
 
-// For individual user monitoring, send the sha256 of their handle so they can subscribve
+// For individual user monitoring, send the sha256 of their handle so they can subscribe
 io.on('connection', function (socket) {
     var ipAddress = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address.address;
     socket.emit('handler', generateHash(ipAddress));
