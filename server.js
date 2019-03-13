@@ -19,24 +19,24 @@
  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  **/
 
-let memcached = require('memcached');
-let dns = require('native-dns');
-let crypto = require('crypto');
-let uuid = require('./fastuuid');
-let async = require('async');
+var memcached = require('memcached');
+var dns = require('native-dns');
+var crypto = require('crypto');
+var uuid = require('./fastuuid');
+var async = require('async');
 var io = require('socket.io').listen(61327);
 
-
-let server = dns.createServer();
-let authority = {
+var server = dns.createServer();
+var authority = {
     address: '8.8.8.8',
     port: 53,
     type: 'udp'
 };
-let staticZones = require('./blacklist.js');
-let memcache = new memcached('localhost');
-let blacklist = staticZones['blacklist'];
-let serverUUID = uuid.v4();
+var staticZones = require('./blacklist.js');
+var memcache = new memcached('localhost');
+var blacklist = staticZones['blacklist'];
+var serverUUID = uuid.v4();
+var customRecords = new Array();
 
 function proxy(question, response, cb) {
     var request = dns.Request({
@@ -46,7 +46,7 @@ function proxy(question, response, cb) {
     });
     // when we get answers, append them to the response
     request.on('message', (err, msg) => {
-        let ttl = 60;
+        var ttl = 60;
         //msg.answer.forEach(a => response.answer.push(a));
         msg.answer.forEach(function (record) {
             response.answer.push(record);
@@ -64,7 +64,7 @@ function proxy(question, response, cb) {
 function handleRequest(request, response) {
 
     // Default emit for web based UI
-    let broadcast = {
+    var broadcast = {
         timestamp: new Date().toISOString().slice(0, 19).replace('T', ' '),
         ipAddress: request.address.address,
         status: 'success',
@@ -72,7 +72,7 @@ function handleRequest(request, response) {
         note: ""
     };
 
-    let f = [];
+    var f = [];
 
     request.question.forEach(question => {
         memcache.get(question.name + question.type, function (err, data) {
@@ -81,7 +81,7 @@ function handleRequest(request, response) {
                 broadcast.status = 'primary';
                 response.answer = data;
             } else {
-                let entry = blacklist[question.name];
+                var entry = blacklist[question.name];
                 if (entry !== undefined) {
                     //Host is blacklisted
                     //so lets not send anything for a DNSFAIL.
@@ -132,6 +132,15 @@ server.on('socketError', (err, socket) => console.error(err));
 io.on('connection', function (socket) {
     var ipAddress = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address.address;
     socket.emit('handler', generateHash(ipAddress));
+    socket.on('customrule', function(msg){
+        // msg.hostname msg.dest
+        // For now it's temporary whilst the server is running
+        if( msg.dest == "" ) {
+            delete customRecords[msg.hostname];
+        } else {
+            customRecords[msg.hostname]=msg.dest;
+        }
+    });
 });
 
 server.serve(53);
