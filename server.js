@@ -19,6 +19,7 @@
  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  **/
 
+const net = require('net');
 var memcached = require('memcached');
 var dns = require('native-dns');
 var crypto = require('crypto');
@@ -81,36 +82,31 @@ function handleRequest(request, response) {
                 broadcast.status = 'primary';
                 response.answer = data;
             } else {
-                var entry = blacklist[question.name];
-                if (entry !== undefined) {
-                    //Host is blacklisted
-                    //so lets not send anything for a DNSFAIL.
-                    //The comment block below shows how to craft a record
-                    /**
-                     try{
-                            entry[0].records.forEach(record => {
-                            record.name = question.name;
-                            record.ttl = record.ttl || 1800;
-                            response.answer.push(dns[record.type](record));
-                                broadcast.note="Blacklisted";
-                                broadcast.status = 'warning';
-                        });
-                            } catch(e) {
-                                    broadcast.note = "Exception AC1";
-                                    broadcast.status = 'danger';
-                            }
-                     **/
-                    broadcast.note = "Blacklisted";
-                    broadcast.status = 'warning';
+                var custom = customRecords[question.name];
+                if (custom !== undefined) {
+                    response.answer.push(custom);
+                    response.send();
                 } else {
-                    f.push(cb => proxy(question, response, cb));
+                    var entry = blacklist[question.name];
+                    if (entry !== undefined) {
+                        //Host is blacklisted
+                        //so lets not send anything for a DNSFAIL.
+                        //Which is bad so we should really fix this
+                        response.answer.push(dns.NOTFOUND); //possibly?
+                        broadcast.note = "Blacklisted";
+                        broadcast.status = 'warning';
+                    } else {
+                        f.push(cb => proxy(question, response, cb));
+                    }
                 }
             }
             io.emit("resolvr_monitor", broadcast);
             io.emit(generateHash(request.address.address), broadcast);
-            async.parallel(f, function () {
-                response.send();
-            });
+            if(f.length > 0 ){
+                async.parallel(f, function () {
+                    response.send();
+                });
+            }
         });
     });
 }
@@ -138,7 +134,11 @@ io.on('connection', function (socket) {
         if( msg.dest == "" ) {
             delete customRecords[msg.hostname];
         } else {
-            customRecords[msg.hostname]=msg.dest;
+            if(net.isIP(msg.dest)) {
+                customRecords[msg.hostname]=dns.A({name: msg.hostname, address: msg.dest,ttl:600});
+            } else {
+                customRecords[msg.hostname]=dns.CNAME({name: msg.hostname, address: msg.dest,ttl:600});
+            }
         }
     });
 });
