@@ -28,11 +28,15 @@ var io = require('socket.io').listen(61327);
 
 
 let server = dns.createServer();
-let authority = {
-    address: '8.8.8.8',
-    port: 53,
-    type: 'udp'
-};
+
+let authority = [
+    { address: '8.8.8.8', port: 53, type: 'udp' },
+    { address: '8.8.4.4', port: 53, type: 'udp' },
+    { address: '208.67.222.222', port: 53, type: 'udp' },
+    { address: '208.67.220.220', port: 53, type: 'udp' },
+    { address: '1.1.1.1', port: 53, type: 'udp' }
+];
+
 let staticZones = require('./blacklist.js');
 let memcache = new memcached('localhost');
 let blacklist = staticZones['blacklist'];
@@ -41,7 +45,7 @@ let serverUUID = uuid.v4();
 function proxy(question, response, cb) {
     var request = dns.Request({
         question: question, // forwarding the question
-        server: authority, // this is the DNS server we are asking
+        server: authority[Math.floor(Math.random()*authority.length)], // this is the DNS server we are asking
         timeout: 1000
     });
     // when we get answers, append them to the response
@@ -117,7 +121,7 @@ function handleRequest(request, response) {
 
 
 function generateHash(ipAddress) {
-    return crypto.createHash('sha256').update("salty" + ipAddress + "goat"+serverUUID).digest('hex');
+    return crypto.createHash('sha256').update("salty" + ipAddress + "goat" + serverUUID).digest('hex');
 }
 
 
