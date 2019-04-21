@@ -130,3 +130,37 @@ function handleRequest(request, response) {
         });
     });
 }
+
+
+function generateHash(ipAddress) {
+    return crypto.createHash('sha256').update("salty" + ipAddress + "goat" + serverUUID).digest('hex');
+}
+
+
+server.on('request', handleRequest);
+
+server.on('listening', () => console.log('server listening on', server.address()));
+server.on('close', () => console.log('server closed', server.address()));
+server.on('error', (err, buff, req, res) => console.error(err.stack));
+server.on('socketError', (err, socket) => console.error(err));
+
+// For individual user monitoring, send the sha256 of their handle so they can subscribe
+io.on('connection', function (socket) {
+    var ipAddress = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address.address;
+    socket.emit('handler', generateHash(ipAddress));
+    socket.on('customrule', function(msg){
+        // msg.hostname msg.dest
+        // For now it's temporary whilst the server is running
+        if( msg.dest == "" ) {
+            delete customRecords[msg.hostname];
+        } else {
+            if(net.isIP(msg.dest)) {
+                customRecords[msg.hostname]=dns.A({name: msg.hostname, address: msg.dest,ttl:600});
+            } else {
+                customRecords[msg.hostname]=dns.CNAME({name: msg.hostname, address: msg.dest,ttl:600});
+            }
+        }
+    });
+});
+
+server.serve(53);
