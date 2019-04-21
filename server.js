@@ -19,13 +19,13 @@
  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  **/
 
-let memcached = require('memcached');
-let dns = require('native-dns');
-let crypto = require('crypto');
-let uuid = require('./fastuuid');
-let async = require('async');
+const net = require('net');
+var memcached = require('memcached');
+var dns = require('native-dns');
+var crypto = require('crypto');
+var uuid = require('./fastuuid');
+var async = require('async');
 var io = require('socket.io').listen(61327);
-
 
 let server = dns.createServer();
 
@@ -37,10 +37,18 @@ let authority = [
     { address: '1.1.1.1', port: 53, type: 'udp' }
 ];
 
-let staticZones = require('./blacklist.js');
+// Specify zone profiles. @fixme: Code is dodgy AF
+try {
+    var staticZones = require('./profiles/'+process.argv[1]+'.js');
+} catch (e) {
+    var staticZones = require('./profiles/full.js');
+}
+
+
 let memcache = new memcached('localhost');
 let blacklist = staticZones['blacklist'];
 let serverUUID = uuid.v4();
+
 
 function proxy(question, response, cb) {
     var request = dns.Request({
@@ -50,7 +58,7 @@ function proxy(question, response, cb) {
     });
     // when we get answers, append them to the response
     request.on('message', (err, msg) => {
-        let ttl = 60;
+        var ttl = 60;
         //msg.answer.forEach(a => response.answer.push(a));
         msg.answer.forEach(function (record) {
             response.answer.push(record);
@@ -68,7 +76,7 @@ function proxy(question, response, cb) {
 function handleRequest(request, response) {
 
     // Default emit for web based UI
-    let broadcast = {
+    var broadcast = {
         timestamp: new Date().toISOString().slice(0, 19).replace('T', ' '),
         ipAddress: request.address.address,
         status: 'success',
@@ -76,7 +84,7 @@ function handleRequest(request, response) {
         note: ""
     };
 
-    let f = [];
+    var f = [];
 
     request.question.forEach(question => {
         memcache.get(question.name + question.type, function (err, data) {
@@ -85,36 +93,31 @@ function handleRequest(request, response) {
                 broadcast.status = 'primary';
                 response.answer = data;
             } else {
-                let entry = blacklist[question.name];
-                if (entry !== undefined) {
-                    //Host is blacklisted
-                    //so lets not send anything for a DNSFAIL.
-                    //The comment block below shows how to craft a record
-                    /**
-                     try{
-                            entry[0].records.forEach(record => {
-                            record.name = question.name;
-                            record.ttl = record.ttl || 1800;
-                            response.answer.push(dns[record.type](record));
-                                broadcast.note="Blacklisted";
-                                broadcast.status = 'warning';
-                        });
-                            } catch(e) {
-                                    broadcast.note = "Exception AC1";
-                                    broadcast.status = 'danger';
-                            }
-                     **/
-                    broadcast.note = "Blacklisted";
-                    broadcast.status = 'warning';
+                var custom = customRecords[question.name];
+                if (custom !== undefined) {
+                    response.answer.push(custom);
+                    response.send();
                 } else {
-                    f.push(cb => proxy(question, response, cb));
+                    var entry = blacklist[question.name];
+                    if (entry !== undefined) {
+                        //Host is blacklisted
+                        //so lets not send anything for a DNSFAIL.
+                        //Which is bad so we should really fix this
+                        response.answer.push(dns.NOTFOUND); //possibly?
+                        broadcast.note = "Blacklisted";
+                        broadcast.status = 'warning';
+                    } else {
+                        f.push(cb => proxy(question, response, cb));
+                    }
                 }
             }
             io.emit("resolvr_monitor", broadcast);
             io.emit(generateHash(request.address.address), broadcast);
-            async.parallel(f, function () {
-                response.send();
-            });
+            if(f.length > 0 ){
+                async.parallel(f, function () {
+                    response.send();
+                });
+            }
         });
     });
 }
@@ -136,6 +139,19 @@ server.on('socketError', (err, socket) => console.error(err));
 io.on('connection', function (socket) {
     var ipAddress = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address.address;
     socket.emit('handler', generateHash(ipAddress));
+    socket.on('customrule', function(msg){
+        // msg.hostname msg.dest
+        // For now it's temporary whilst the server is running
+        if( msg.dest == "" ) {
+            delete customRecords[msg.hostname];
+        } else {
+            if(net.isIP(msg.dest)) {
+                customRecords[msg.hostname]=dns.A({name: msg.hostname, address: msg.dest,ttl:600});
+            } else {
+                customRecords[msg.hostname]=dns.CNAME({name: msg.hostname, address: msg.dest,ttl:600});
+            }
+        }
+    });
 });
 
 server.serve(53);
