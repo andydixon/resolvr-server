@@ -27,28 +27,44 @@ var uuid = require('./fastuuid');
 var async = require('async');
 var io = require('socket.io').listen(61327);
 
-var server = dns.createServer();
-var authority = {
-    address: '8.8.8.8',
-    port: 53,
-    type: 'udp'
-};
-var staticZones = require('./blacklist.js');
-var memcache = new memcached('localhost');
-var blacklist = staticZones['blacklist'];
-var serverUUID = uuid.v4();
-var customRecords = new Array();
+
+var customRecords = [];
+let server = dns.createServer();
+
+let authority = [
+    { address: '8.8.8.8', port: 53, type: 'udp' },
+    { address: '8.8.4.4', port: 53, type: 'udp' },
+    { address: '208.67.222.222', port: 53, type: 'udp' },
+    { address: '208.67.220.220', port: 53, type: 'udp' },
+    { address: '1.1.1.1', port: 53, type: 'udp' }
+];
+
+// Specify zone profiles. @fixme: Code is dodgy AF
+try {
+    var staticZones = require('./profiles/' + process.argv[1] + '.js');
+    console.log("Loaded profile "+ process.argv[1]);
+} catch (e) {
+    var staticZones = require('./profiles/full.js');
+    console.log("Loaded default (full) profile");
+}
+
+
+let memcache = new memcached('localhost');
+let blacklist = staticZones['blacklist'];
+let serverUUID = uuid.v4();
+
 
 function proxy(question, response, cb) {
+    var server = authority[Math.floor(Math.random() * authority.length)];
     var request = dns.Request({
-        question: question, // forwarding the question
-        server: authority, // this is the DNS server we are asking
+        question: question,
+        server: server, 
         timeout: 1000
     });
+    console.log(question.name + " proxied to " + server.address);
     // when we get answers, append them to the response
     request.on('message', (err, msg) => {
         var ttl = 60;
-        //msg.answer.forEach(a => response.answer.push(a));
         msg.answer.forEach(function (record) {
             response.answer.push(record);
             ttl = record.ttl;
@@ -63,7 +79,6 @@ function proxy(question, response, cb) {
 }
 
 function handleRequest(request, response) {
-
     // Default emit for web based UI
     var broadcast = {
         timestamp: new Date().toISOString().slice(0, 19).replace('T', ' '),
@@ -77,10 +92,12 @@ function handleRequest(request, response) {
 
     request.question.forEach(question => {
         memcache.get(question.name + question.type, function (err, data) {
+            console.log(question);
             if (data) {
                 broadcast.note = "cached";
                 broadcast.status = 'primary';
                 response.answer = data;
+                console.log(question.name + " Type " + question.type + " is cached");
             } else {
                 var custom = customRecords[question.name];
                 if (custom !== undefined) {
@@ -95,6 +112,7 @@ function handleRequest(request, response) {
                         response.answer.push(dns.NOTFOUND); //possibly?
                         broadcast.note = "Blacklisted";
                         broadcast.status = 'warning';
+                        console.log(question.name + " is blacklisted.");
                     } else {
                         f.push(cb => proxy(question, response, cb));
                     }
@@ -102,45 +120,13 @@ function handleRequest(request, response) {
             }
             io.emit("resolvr_monitor", broadcast);
             io.emit(generateHash(request.address.address), broadcast);
-            if(f.length > 0 ){
-                async.parallel(f, function () {
-                    response.send();
-                });
+            if (response.answer.length > 0 || f.length > 0) {
+                try {
+                    async.parallel(f, function () {
+                        response.send();
+                    });
+                } catch (e) { }
             }
         });
     });
 }
-
-
-function generateHash(ipAddress) {
-    return crypto.createHash('sha256').update("salty" + ipAddress + "goat"+serverUUID).digest('hex');
-}
-
-
-server.on('request', handleRequest);
-
-server.on('listening', () => console.log('server listening on', server.address()));
-server.on('close', () => console.log('server closed', server.address()));
-server.on('error', (err, buff, req, res) => console.error(err.stack));
-server.on('socketError', (err, socket) => console.error(err));
-
-// For individual user monitoring, send the sha256 of their handle so they can subscribe
-io.on('connection', function (socket) {
-    var ipAddress = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address.address;
-    socket.emit('handler', generateHash(ipAddress));
-    socket.on('customrule', function(msg){
-        // msg.hostname msg.dest
-        // For now it's temporary whilst the server is running
-        if( msg.dest == "" ) {
-            delete customRecords[msg.hostname];
-        } else {
-            if(net.isIP(msg.dest)) {
-                customRecords[msg.hostname]=dns.A({name: msg.hostname, address: msg.dest,ttl:600});
-            } else {
-                customRecords[msg.hostname]=dns.CNAME({name: msg.hostname, address: msg.dest,ttl:600});
-            }
-        }
-    });
-});
-
-server.serve(53);
