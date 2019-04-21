@@ -27,6 +27,8 @@ var uuid = require('./fastuuid');
 var async = require('async');
 var io = require('socket.io').listen(61327);
 
+
+var customRecords = [];
 let server = dns.createServer();
 
 let authority = [
@@ -39,9 +41,11 @@ let authority = [
 
 // Specify zone profiles. @fixme: Code is dodgy AF
 try {
-    var staticZones = require('./profiles/'+process.argv[1]+'.js');
+    var staticZones = require('./profiles/' + process.argv[1] + '.js');
+    console.log("Loaded profile "+ process.argv[1]);
 } catch (e) {
     var staticZones = require('./profiles/full.js');
+    console.log("Loaded default (full) profile");
 }
 
 
@@ -51,15 +55,16 @@ let serverUUID = uuid.v4();
 
 
 function proxy(question, response, cb) {
+    var server = authority[Math.floor(Math.random() * authority.length)];
     var request = dns.Request({
-        question: question, // forwarding the question
-        server: authority[Math.floor(Math.random()*authority.length)], // this is the DNS server we are asking
+        question: question,
+        server: server, 
         timeout: 1000
     });
+    console.log(question.name + " proxied to " + server.address);
     // when we get answers, append them to the response
     request.on('message', (err, msg) => {
         var ttl = 60;
-        //msg.answer.forEach(a => response.answer.push(a));
         msg.answer.forEach(function (record) {
             response.answer.push(record);
             ttl = record.ttl;
@@ -74,7 +79,6 @@ function proxy(question, response, cb) {
 }
 
 function handleRequest(request, response) {
-
     // Default emit for web based UI
     var broadcast = {
         timestamp: new Date().toISOString().slice(0, 19).replace('T', ' '),
@@ -88,10 +92,12 @@ function handleRequest(request, response) {
 
     request.question.forEach(question => {
         memcache.get(question.name + question.type, function (err, data) {
+            console.log(question);
             if (data) {
                 broadcast.note = "cached";
                 broadcast.status = 'primary';
                 response.answer = data;
+                console.log(question.name + " Type " + question.type + " is cached");
             } else {
                 var custom = customRecords[question.name];
                 if (custom !== undefined) {
@@ -106,6 +112,7 @@ function handleRequest(request, response) {
                         response.answer.push(dns.NOTFOUND); //possibly?
                         broadcast.note = "Blacklisted";
                         broadcast.status = 'warning';
+                        console.log(question.name + " is blacklisted.");
                     } else {
                         f.push(cb => proxy(question, response, cb));
                     }
@@ -113,10 +120,12 @@ function handleRequest(request, response) {
             }
             io.emit("resolvr_monitor", broadcast);
             io.emit(generateHash(request.address.address), broadcast);
-            if(f.length > 0 ){
-                async.parallel(f, function () {
-                    response.send();
-                });
+            if (response.answer.length > 0 || f.length > 0) {
+                try {
+                    async.parallel(f, function () {
+                        response.send();
+                    });
+                } catch (e) { }
             }
         });
     });
