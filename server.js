@@ -41,8 +41,8 @@ let authority = [
 
 // Specify zone profiles. @fixme: Code is dodgy AF
 try {
-    var staticZones = require('./profiles/' + process.argv[1] + '.js');
-    console.log("Loaded profile "+ process.argv[1]);
+    var staticZones = require('./profiles/' + process.argv[2] + '.js');
+    console.log("Loaded profile "+ process.argv[2]);
 } catch (e) {
     var staticZones = require('./profiles/full.js');
     console.log("Loaded default (full) profile");
