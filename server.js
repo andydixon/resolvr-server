@@ -54,8 +54,7 @@ let blacklist = staticZones['blacklist'];
 let serverUUID = uuid.v4();
 
 
-function proxy(question, response, cb) {
-    var server = authority[Math.floor(Math.random() * authority.length)];
+function proxy(question, response, cb, server) {
     var request = dns.Request({
         question: question,
         server: server, 
@@ -114,7 +113,9 @@ function handleRequest(request, response) {
                         broadcast.status = 'warning';
                         console.log(question.name + " is blacklisted.");
                     } else {
-                        f.push(cb => proxy(question, response, cb));
+                        var proxy=authority[Math.floor(Math.random() * authority.length)];
+                        broadcast.note = "Proxied request to "+proxy;
+                        f.push(cb => proxy(question, response, cb,proxy));
                     }
                 }
             }

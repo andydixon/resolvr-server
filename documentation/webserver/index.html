@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+        <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Resolvr Realtime Monitoring</title>
+                <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+                <script src="/socket.io/socket.io.js"></script>
+                <script  src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="  crossorigin="anonymous"></script>
+                <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+                <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+        </head>
+        <body>
+<header>
+      <div class="navbar navbar-dark bg-dark box-shadow">
+        <div class="container d-flex justify-content-between">
+          <a href="#" class="navbar-brand d-flex align-items-center">
+                  <strong>resolvr</strong>&nbsp; &nbsp;realtime resolver logs<span id="cnctid" style="position:absolute; right:5px;"></span>
+          </a>
+        </div>
+      </div>
+    </header>
+
+                <div class="container">
+                        <table class="table">
+                                 <tbody id="tableBody">
+                                </tbody>
+                        </table>
+                </div>
+        </body>
+
+        <script>
+                var ns1 = io();
+                ns1.on('handler',function(handlerID){
+                        console.log(handlerID);
+                        ns1.on(handlerID, function(msg){
+                                var msgnote=msg.note;
+                                if(msgnote=='') msgnote='Proxied';
+                                var html="<tr class='alert alert-" + msg.status + "'><td><kbd>"+msg.hostname+"</kbd><br><code>"+msgnote+"</code><br><strong>Server: </strong>ns1.resolvr.cc<br><strong>Timestamp: </strong>" + msg.timestamp + "</td></tr>";
+                                $(html).hide().prependTo('#tableBody').fadeIn("fast").delay(5000).fadeOut('fast',function(e){$(e).remove();});
+                        });
+                });
+
+                var ns2 = io(window.location.protocol+'//'+window.location.hostname,{path: '/ns2'});
+
+                ns2.on('handler',function(handlerID){
+                        console.log(handlerID);
+                        ns2.on(handlerID, function(msg){
+                                var msgnote=msg.note;
+                                if(msgnote=='') msgnote='Proxied';
+                                var html="<tr class='alert alert-" + msg.status + "'><td><kbd>"+msg.hostname+"</kbd><br><code>"+msgnote+"</code><br><strong>Server: </strong>ns2.resolvr.cc<br><strong>Timestamp: </strong>" + msg.timestamp + "</td></tr>";
+
+                                $(html).hide().prependTo('#tableBody').fadeIn("fast").delay(5000).fadeOut('fast',function(e){$(e).remove();});
+                        });
+                });
+        </script>
+
+</html>
