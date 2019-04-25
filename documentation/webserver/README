@@ -1,0 +1,10 @@
+The config used in the apache2 example config.txt is what is used on my servers on AWS.
+
+The following Apache modules needed to be enabled:
+    proxy
+    proxy_http
+    proxy_wstunnel
+
+These can be enabled with a2enmod <modulename>
+
+The index.html needs to be dropped into a folder, and the paths changed on the socket.io connection as and where needed.

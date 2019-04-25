@@ -1,0 +1,29 @@
+# Need to a2enmod proxy, proxy_http, and proxy_wstunnel
+
+<VirtualHost *:80>
+        #ServerName www.example.com
+
+        ServerAdmin webmaster@localhost
+        DocumentRoot /var/www/html
+
+        RewriteEngine On
+        RewriteCond %{REQUEST_URI} ^/socket.io          [NC]
+        RewriteCond %{QUERY_STRING} transport=websocket [NC]
+        RewriteRule /(.*) ws://localhost:61327/%1        [P,L]
+
+        ProxyPass /socket.io http://localhost:61327/socket.io
+        ProxyPassReverse /socket.io http://localhost:61327/socket.io
+
+
+        # If other resolvers are used, duplicate the mod_rewrites
+
+        RewriteCond %{REQUEST_URI} ^/ns2          [NC]
+        RewriteCond %{QUERY_STRING} transport=websocket [NC]
+        RewriteRule /(.*) ws://172.26.13.27:61327/%1        [P,L]
+
+        ProxyPass /ns2 http://172.26.13.27:61327/socket.io
+        ProxyPassReverse /ns2 http://172.26.13.27:61327/socket.io
+
+        ErrorLog ${APACHE_LOG_DIR}/error.log
+        CustomLog ${APACHE_LOG_DIR}/access.log combined
+</VirtualHost>
