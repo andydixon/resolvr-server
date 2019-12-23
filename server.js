@@ -78,7 +78,8 @@ function proxy(question, response, cb, server) {
 }
 
 function handleRequest(request, response) {
-    // Default emit for web based UI
+console.log('here');
+	// Default emit for web based UI
     var broadcast = {
         timestamp: new Date().toISOString().slice(0, 19).replace('T', ' '),
         ipAddress: request.address.address,
@@ -113,12 +114,13 @@ function handleRequest(request, response) {
                         broadcast.status = 'warning';
                         console.log(question.name + " is blacklisted.");
                     } else {
-                        var proxy=authority[Math.floor(Math.random() * authority.length)];
+                        var prox=authority[Math.floor(Math.random() * authority.length)];
                         broadcast.note = "Proxied request to "+proxy;
-                        f.push(cb => proxy(question, response, cb,proxy));
+                        f.push(cb => proxy(question, response, cb,prox));
                     }
                 }
             }
+		console.log(broadcast);
             io.emit("resolvr_monitor", broadcast);
             io.emit(generateHash(request.address.address), broadcast);
             if (response.answer.length > 0 || f.length > 0) {
@@ -126,7 +128,7 @@ function handleRequest(request, response) {
                     async.parallel(f, function () {
                         response.send();
                     });
-                } catch (e) { }
+                } catch (e) { console.log(e);}
             }
         });
     });
@@ -164,4 +166,4 @@ io.on('connection', function (socket) {
     });
 });
 
-server.serve(53);
+server.serve(53,'95.216.14.250');
