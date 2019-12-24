@@ -1,20 +1,16 @@
 'use strict';
 
 /**
-
  Resolvr DNS Server - Advert, Spyware and Malware DNS Level Blocker
  Copyright (C) 2018- Andy Dixon
-
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
  the Free Software Foundation, either version 3 of the License, or
  (at your option) any later version.
-
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  GNU General Public License for more details.
-
  You should have received a copy of the GNU General Public License
  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  **/
@@ -25,8 +21,10 @@ var dns = require('native-dns');
 var crypto = require('crypto');
 var uuid = require('./fastuuid');
 var async = require('async');
-var io = require('socket.io').listen(61327);
 
+var webserver = require('http').createServer();
+webserver.listen(61327,process.argv[2]);
+var io = require('socket.io').listen(webserver);
 
 var customRecords = [];
 let server = dns.createServer();
@@ -166,4 +164,4 @@ io.on('connection', function (socket) {
     });
 });
 
-server.serve(53,'95.216.14.250');
+server.serve(53,process.argv[2]);
