@@ -113,7 +113,7 @@ console.log('here');
                         console.log(question.name + " is blacklisted.");
                     } else {
                         var prox=authority[Math.floor(Math.random() * authority.length)];
-                        broadcast.note = "Proxied request to "+proxy;
+                        broadcast.note = "Proxied request to "+prox;
                         f.push(cb => proxy(question, response, cb,prox));
                     }
                 }
