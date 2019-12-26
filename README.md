@@ -5,12 +5,8 @@ Resolvr DNS server and supporting configuration Updating with PHP script. _note 
 
 # Installation #
 
-With NodeJS and NPM installed, run the following:
-``` npm install``` followed by ``` npm start ``` to start it.
-
-# Start-up issues #
-
-If you have an existing resolver enabled and listening on port 53, you will need to disable it. For newer ubuntu users, look up *disable systemd-resolved* and that should guide you through it. 
+With NodeJS, memcached and NPM installed, run the following:
+``` npm install``` followed by ``` nodejs server.js <ip address to bind to> ``` to start it.
 
 
 # Known Bugs #
