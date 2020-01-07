@@ -37,15 +37,7 @@ let authority = [
     { address: '1.1.1.1', port: 53, type: 'udp' }
 ];
 
-// Specify zone profiles. @fixme: Code is dodgy AF
-try {
-    var staticZones = require('./profiles/' + process.argv[2] + '.js');
-    console.log("Loaded profile "+ process.argv[2]);
-} catch (e) {
-    var staticZones = require('./profiles/full.js');
-    console.log("Loaded default (full) profile");
-}
-
+var staticZones = require('/src/profiles/full.js');
 
 let memcache = new memcached('localhost');
 let blacklist = staticZones['blacklist'];
@@ -164,4 +156,4 @@ io.on('connection', function (socket) {
     });
 });
 
-server.serve(53,process.argv[2]);
+server.serve(53,'0.0.0.0');
